@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Vector DB Yükleme ve Arama</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f7f7f7;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    h1, h2, h3 {
+      color: #333;
+    }
+    form {
+      margin-bottom: 30px;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+    input[type="file"] {
+      margin-top: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #005da3;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 15px;
+      padding: 10px;
+      background-color: #fafafa;
+      border-left: 4px solid #007acc;
+    }
+    .score {
+      font-size: 0.9em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Vector DB Yükleme ve Arama</h1>
+
+    <h2>Belge Ekle</h2>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <label>Metin dosyası yükle (.txt):</label>
+      <input type="file" name="file" accept=".txt"><br><br>
+      <label>Veya metni buraya yapıştırın:</label><br>
+      <textarea name="text_input" rows="6" placeholder="Metninizi buraya yazın veya yapıştırın..."></textarea><br>
+      <button type="submit">Yükle</button>
+    </form>
+
+    <h2>Arama</h2>
+    <form action="/search" method="post">
+      <input type="text" name="query" placeholder="Aramak istediğiniz ifadeyi yazın">
+      <button type="submit">Ara</button>
+    </form>
+
+    {% if results %}
+    <div class="results">
+      <h3>Arama Sonuçları</h3>
+      <ul>
+        {% for item in results %}
+        <li>
+          <strong>{{ item.filename }}</strong><br>
+          <span class="score">Benzerlik (mesafe): {{ item.score }}</span><br>
+          {{ item.text }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>
