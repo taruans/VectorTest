@@ -56,8 +56,12 @@ VECTOR_DIM = 512  # HashingVectorizer için sabit özellik sayısı
 
 # Belgelerin vektörleştirilmesi için HashingVectorizer kullanıyoruz.
 # alternate_sign=False seçeneği negatif değerleri engeller ve vektörler
-# Milvus'ta saklanabilir hale gelir.
-vectorizer = HashingVectorizer(n_features=VECTOR_DIM, alternate_sign=False, norm=None)
+# Milvus'ta saklanabilir hale gelir. norm='l2' ayarı vektörleri birim
+# uzunluğa getirerek COSINE metriğiyle yapılan aramalarda daha doğru
+# sonuçlar elde edilmesini sağlar.
+vectorizer = HashingVectorizer(
+    n_features=VECTOR_DIM, alternate_sign=False, norm="l2"
+)
 
 # Milvus istemcisini başlatıyoruz. DB_PATH parametresi yerel dosyaya işaret eder.
 client = MilvusClient(DB_PATH)
