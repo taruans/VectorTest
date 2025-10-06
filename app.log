@@ -1,0 +1,19 @@
+2025-10-06 08:15:09,416 - INFO - Use pytorch device_name: cpu
+2025-10-06 08:15:09,416 - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-10-06 08:15:11,817 - INFO - Yükleniyor: 5 satır initial_data.txt dosyasından.
+2025-10-06 08:15:11,817 - INFO - Vektörleniyor ve ekleniyor: Doktor Ahmet, kardiyoloji alanında uzmandır.
+2025-10-06 08:15:11,817 - INFO - Vektörleniyor ve ekleniyor: Deneyimli bir çocuk doktoru olan Ayşe Hanım, kliniğinde hizmet vermektedir.
+2025-10-06 08:15:11,817 - INFO - Vektörleniyor ve ekleniyor: Hukuk büromuz, ceza davalarında müvekkillerine yardımcı olmaktadır.
+2025-10-06 08:15:11,817 - INFO - Vektörleniyor ve ekleniyor: Ünlü şef, yeni bir İtalyan restoranı açtı.
+2025-10-06 08:15:11,818 - INFO - Vektörleniyor ve ekleniyor: Psikolog Elif, anksiyete ve depresyon üzerine çalışıyor.
+2025-10-06 08:17:17,231 - INFO - Use pytorch device_name: cpu
+2025-10-06 08:17:17,231 - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-mpnet-base-v2
+2025-10-06 08:17:23,515 - INFO - Yükleniyor: 5 satır initial_data.txt dosyasından.
+2025-10-06 08:17:23,515 - INFO - Vektörleniyor ve ekleniyor: Doktor Ahmet, kardiyoloji alanında uzmandır.
+2025-10-06 08:17:23,516 - INFO - Vektörleniyor ve ekleniyor: Deneyimli bir çocuk doktoru olan Ayşe Hanım, kliniğinde hizmet vermektedir.
+2025-10-06 08:17:23,516 - INFO - Vektörleniyor ve ekleniyor: Hukuk büromuz, ceza davalarında müvekkillerine yardımcı olmaktadır.
+2025-10-06 08:17:23,516 - INFO - Vektörleniyor ve ekleniyor: Ünlü şef, yeni bir İtalyan restoranı açtı.
+2025-10-06 08:17:23,516 - INFO - Vektörleniyor ve ekleniyor: Psikolog Elif, anksiyete ve depresyon üzerine çalışıyor.
+2025-10-06 08:17:24,301 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-10-06 08:17:24,301 - INFO - [33mPress CTRL+C to quit[0m
