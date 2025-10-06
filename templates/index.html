@@ -4,66 +4,135 @@
   <meta charset="UTF-8">
   <title>Vector DB Yükleme ve Arama</title>
   <style>
+    :root {
+      --bg: #0f1115;
+      --bg-elev: #151923;
+      --card: #1b2130;
+      --text: #e6e7ea;
+      --muted: #9aa4b2;
+      --primary: #4f8cff;
+      --primary-hover: #3b74e6;
+      --accent: #22d3ee;
+      --border: #263043;
+      --success: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background-color: #f7f7f7;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 0;
+      background: radial-gradient(1200px 800px at 10% 0%, rgba(34,211,238,.08), transparent 40%),
+                  radial-gradient(1200px 800px at 100% 0%, rgba(79,140,255,.08), transparent 35%),
+                  var(--bg);
+      color: var(--text);
     }
     .container {
-      max-width: 800px;
-      margin: auto;
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      max-width: 900px;
+      margin: 48px auto;
+      background: var(--bg-elev);
+      padding: 28px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
     }
-    h1, h2, h3 {
-      color: #333;
-    }
-    form {
-      margin-bottom: 30px;
-    }
-    input[type="text"], textarea {
+    h1 { margin: 0 0 16px; font-size: 28px; letter-spacing: .3px; }
+    h2 { margin: 28px 0 12px; font-size: 18px; color: var(--muted); font-weight: 600; }
+
+    /* Forms */
+    form { margin-bottom: 22px; }
+    label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 14px; }
+    input[type="text"], textarea, input[type="file"] {
       width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      margin-top: 5px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 12px;
+      outline: none;
+      transition: border-color .2s ease, box-shadow .2s ease;
     }
-    input[type="file"] {
-      margin-top: 5px;
+    input[type="text"]:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79,140,255,.15);
     }
+    textarea { resize: vertical; min-height: 120px; }
+    .search-input-wrapper { position: relative; }
+    .clear-btn {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: transparent; border: 0; color: var(--muted); font-size: 20px; cursor: pointer;
+    }
+    .clear-btn:hover { color: var(--text); }
+
     button {
-      padding: 10px 20px;
-      background-color: #007acc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 16px; border: 0; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(180deg, var(--primary), var(--primary-hover));
+      color: #fff; font-weight: 600; letter-spacing: .2px; box-shadow: var(--shadow);
+      transition: transform .05s ease, filter .2s ease;
     }
-    button:hover {
-      background-color: #005da3;
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px); }
+
+    /* Results */
+    .results { margin-top: 16px; }
+    ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    li { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 0 0 6px; }
+    .meta .filename { color: var(--muted); font-size: 13px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge.blue { background: rgba(79,140,255,.18); color: #cfe0ff; border: 1px solid rgba(79,140,255,.35); }
+    .badge.green { background: rgba(34,197,94,.18); color: #d5f7e2; border: 1px solid rgba(34,197,94,.35); }
+    .badge.yellow { background: rgba(245,158,11,.18); color: #fde8b5; border: 1px solid rgba(245,158,11,.35); }
+    .badge.gray { background: rgba(148,163,184,.18); color: #e5e7eb; border: 1px solid rgba(148,163,184,.3); }
+
+    .text { margin: 0; line-height: 1.6; }
+
+    /* DEBUG */
+    pre { background: #0b0e14; border: 1px solid var(--border); color: #cbd5e1; padding: 12px; border-radius: 12px; overflow: auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-elev);
+      padding: 12px 28px;
+      border-bottom: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
     }
-    ul {
-      list-style-type: none;
-      padding: 0;
+    header h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--primary);
     }
-    li {
-      margin-bottom: 15px;
-      padding: 10px;
-      background-color: #fafafa;
-      border-left: 4px solid #007acc;
+    header a.home-btn {
+      background: linear-gradient(180deg, var(--primary), var(--primary-hover));
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow);
+      transition: filter .2s ease;
     }
-    .score {
-      font-size: 0.9em;
-      color: #666;
+    header a.home-btn:hover {
+      filter: brightness(1.05);
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <header>
     <h1>Vector DB Yükleme ve Arama</h1>
+    <a href="/" class="home-btn">🏠 Ana Sayfa</a>
+  </header>
+  <div class="container">
 
     <h2>Belge Ekle</h2>
     <form action="/upload" method="post" enctype="multipart/form-data">
@@ -75,25 +144,39 @@
     </form>
 
     <h2>Arama</h2>
-    <form action="/search" method="post">
-      <input type="text" name="query" placeholder="Aramak istediğiniz ifadeyi yazın">
-      <button type="submit">Ara</button>
-    </form>
+<form action="/search" method="post">
+  <div class="search-input-wrapper">
+    <input type="text" id="query" name="query" placeholder="Aramak istediğiniz ifadeyi yazın"
+           value="{{ query | default('') }}">
+    {% if query %}
+        <button type="button" class="clear-btn" aria-label="Arama metnini temizle" onclick="document.getElementById('query').value='';">×</button>
+    {% endif %}
+  </div>
+  <button type="submit">Ara</button>
+</form>
 
-    {% if results %}
+{% if results is defined %}
+  {% if results %}
     <div class="results">
       <h3>Arama Sonuçları</h3>
       <ul>
-        {% for item in results %}
-        <li>
-          <strong>{{ item.filename }}</strong><br>
-          <span class="score">Benzerlik (mesafe): {{ item.score }}</span><br>
-          {{ item.text }}
-        </li>
+        {% for result in results %}
+          <li>
+            <div class="meta">
+              <span class="filename">📄 {{ result.filename }}</span>
+              <span class="badge {% if 'Çok benzer' in result.label %}blue{% elif 'Benzer' in result.label %}green{% elif 'Kısmen' in result.label %}yellow{% else %}gray{% endif %}">
+                {{ result.score }} · {{ result.label }}
+              </span>
+            </div>
+            <p class="text">{{ result.text }}</p>
+          </li>
         {% endfor %}
       </ul>
     </div>
-    {% endif %}
+  {% elif query %}
+    <p>Sonuç bulunamadı.</p>
+  {% endif %}
+{% endif %}
   </div>
 </body>
 </html>

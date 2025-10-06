@@ -1,0 +1,22 @@
+# Ignore test vectors directory
+vector_test/
+
+# OS and editor files
+.DS_Store
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+
+# Env and local config
+.env
+.env.*
+
+# Databases and locks
+*.db
+*.db.lock
