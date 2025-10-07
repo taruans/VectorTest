@@ -3,9 +3,9 @@ Basit bir Flask uygulaması ile Milvus Lite kullanan bir vektör arama örneği.
 
 Bu uygulama, kullanıcıların metin belgelerini veya doğrudan yazdıkları
 metinleri yükleyebilmelerine ve ardından bu metinler arasında arama
-yapabilmelerine olanak tanır. Belgeler, scikit‑learn'in HashingVectorizer
-kullanılarak sabit boyutlu vektörlere dönüştürülür ve Milvus Lite
-veritabanında saklanır.
+yapabilmelerine olanak tanır. Belgeler, SentenceTransformer koleksiyonundan
+"intfloat/multilingual-e5-large" modeli kullanılarak sabit boyutlu vektörlere
+dönüştürülür ve Milvus Lite veritabanında saklanır.
 
 Not: Milvus Lite, yerel bir veritabanı dosyası üzerinden çalışır. Bu dosya
 oluşturulduğunda Milvus arka planda otomatik olarak ayağa kalkar ve
@@ -15,7 +15,6 @@ LD_LIBRARY_PATH ayarı bu durumu düzeltmeye yardımcı olabilir.
 """
 
 import os
-import re
 import site
 import logging
 from flask import Flask, render_template, request, redirect
@@ -60,47 +59,66 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "vector_db.db")
 
+EMBEDDING_MODEL_NAME = "intfloat/multilingual-e5-large"
 COLLECTION_NAME = "documents"
-VECTOR_DIM = 768  # SentenceTransformer "paraphrase-multilingual-mpnet-base-v2" için boyut
+VECTOR_DIM = 1024  # intfloat/multilingual-e5-large için vektör boyutu
 
 # Belgelerin vektörleştirilmesi için SentenceTransformer kullanıyoruz.
-vectorizer = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
-
-# Sorgu terimleri arasında eş anlamlı kabul edilecek ifadeler
-SYNONYM_GROUPS = [
-    {"diş hekimi", "dişçi", "diş", "dentist"},
-    {"psikiyatrist", "psikiyatr"},
-]
+vectorizer = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
-def build_term_weights(query_tokens, query_text):
-    """Sorgudaki terimler ve eş anlamlıları için ağırlık haritası oluştur."""
-    term_weights = {}
-    base_tokens = [tok for tok in query_tokens if tok]
+def encode_document(text: str):
+    """Belgeler için E5 modeline uygun embedding hazırla."""
+    return vectorizer.encode(
+        f"passage: {text}",
+        normalize_embeddings=True,
+    ).tolist()
 
-    for idx, token in enumerate(base_tokens):
-        base_weight = 0.14 if idx == 0 else 0.07
-        term_weights[token] = max(term_weights.get(token, 0.0), base_weight)
 
-    if query_text:
-        term_weights[query_text] = max(term_weights.get(query_text, 0.0), 0.18)
-
-    for group in SYNONYM_GROUPS:
-        group_weight = max((term_weights.get(term, 0.0) for term in group), default=0.0)
-        if group_weight:
-            for term in group:
-                term_weights[term] = max(term_weights.get(term, 0.0), group_weight)
-
-    return term_weights
+def encode_query(text: str):
+    """Sorgular için E5 modeline uygun embedding hazırla."""
+    return vectorizer.encode(
+        f"query: {text}",
+        normalize_embeddings=True,
+    ).tolist()
 
 
 # Milvus istemcisini başlatıyoruz. DB_PATH parametresi yerel dosyaya işaret eder.
 client = MilvusClient(DB_PATH)
 
-# Koleksiyon mevcut değilse oluşturulur. auto_id=True ayarı ile birincil anahtar
-# otomatik olarak oluşturulur. Vektör alanı FLOAT_VECTOR türünde olmalı ve
-# boyutu önceden belirlenmelidir.
-if not client.has_collection(COLLECTION_NAME):
+
+def ensure_collection(vector_dim: int):
+    """Koleksiyon vektör boyutu yeni modele uymuyorsa yeniden oluştur."""
+    collection_exists = client.has_collection(COLLECTION_NAME)
+    if collection_exists:
+        try:
+            schema = client.describe_collection(COLLECTION_NAME)
+            vector_field = next(
+                (field for field in schema.get("fields", []) if field.get("name") == "vector"),
+                None,
+            )
+            current_dim = None
+            if vector_field:
+                params = vector_field.get("params") or {}
+                current_dim = int(params.get("dim")) if params.get("dim") else None
+            if current_dim and current_dim != vector_dim:
+                logging.warning(
+                    "Mevcut koleksiyon dim=%s, beklenen dim=%s. Koleksiyon düşürülüyor...",
+                    current_dim,
+                    vector_dim,
+                )
+                client.drop_collection(COLLECTION_NAME)
+                collection_exists = False
+        except Exception as exc:  # pragma: no cover - koruyucu kontrol
+            logging.error("Koleksiyon şeması okunamadı: %s", exc)
+            collection_exists = False
+
+    if collection_exists:
+        return
+
+    # Koleksiyon mevcut değilse oluşturulur. auto_id=True ayarı ile birincil anahtar
+    # otomatik olarak oluşturulur. Vektör alanı FLOAT_VECTOR türünde olmalı ve
+    # boyutu önceden belirlenmelidir.
     schema = MilvusClient.create_schema(auto_id=True)
     schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
     schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=VECTOR_DIM)
@@ -129,7 +147,7 @@ if not client.has_collection(COLLECTION_NAME):
                 logging.info(f"Vektörleniyor ve ekleniyor: {line}")
             data = [
                 {
-                    "vector": vectorizer.encode(line).tolist(),
+                    "vector": encode_document(line),
                     "text": line,
                     "filename": "initial_data.txt"
                 }
@@ -137,6 +155,9 @@ if not client.has_collection(COLLECTION_NAME):
             ]
             client.insert(collection_name=COLLECTION_NAME, data=data)
             client.flush(collection_name=COLLECTION_NAME)
+
+
+ensure_collection(VECTOR_DIM)
 
 
 @app.route("/", methods=["GET"])
@@ -174,7 +195,7 @@ def upload():
         return redirect("/")
 
     # Metni vektörleştirme
-    vector = vectorizer.encode(text).tolist()
+    vector = encode_document(text)
 
     # Milvus'a eklemek üzere veri nesnesi
     data = [
@@ -202,10 +223,8 @@ def search():
         return redirect("/")
 
     try:
-        query_tokens = [tok for tok in re.split(r"\W+", query.lower()) if tok]
-
         # Sorgu vektörünü hazırla
-        query_vector = vectorizer.encode(query).tolist()
+        query_vector = encode_query(query)
 
         # Koleksiyonu belleğe yükle
         client.load_collection(collection_name=COLLECTION_NAME)
@@ -223,35 +242,14 @@ def search():
 
         # Sonuçları işle, filtrele ve sırala
         results = []
-        keyword_query = query.lower() if query else ""
-        term_weights = build_term_weights(query_tokens, keyword_query)
 
         for hits in res:
             for item in hits:
                 raw_distance = float(item.distance)
-                similarity = 1.0 - raw_distance  # Milvus COSINE distance -> convert to similarity
+                similarity = 1.0 - raw_distance  # Milvus COSINE distance -> benzerliğe dönüştür
                 similarity = max(0.0, min(1.0, similarity))
 
                 text_value = item.entity.get("text", "")
-                text_lower = text_value.lower()
-                keyword_score = 0.0
-                matched_terms = []
-
-                for term, weight in term_weights.items():
-                    if term and term in text_lower:
-                        keyword_score += weight
-                        matched_terms.append(term)
-
-                if keyword_score:
-                    boost = min(0.4, keyword_score)
-                    similarity = min(1.0, similarity + boost)
-                    logging.debug(
-                        "Anahtar kelime eşleşmeleri: %s, toplam ağırlık=%.2f, boost=%.2f, yeni benzerlik=%.3f",
-                        matched_terms,
-                        keyword_score,
-                        boost,
-                        similarity,
-                    )
 
                 score_percent = int(round(similarity * 100))
 
@@ -265,7 +263,6 @@ def search():
                     "text": text_value,
                     "score": f"{score_percent}%",
                     "score_num": score_percent,
-                    "keyword_score": round(keyword_score, 3),
                     "label": label,
                 }
                 results.append(result_data)
@@ -277,18 +274,11 @@ def search():
         filtered_results = [r for r in results if r.get("score_num", 0) >= threshold]
         logging.info(f"Eşik (>={threshold}%) sonrası sonuç sayısı: {len(filtered_results)}")
 
-        def sort_results(items):
-            return sorted(
-                items,
-                key=lambda x: (x.get("keyword_score", 0), x.get("score_num", 0)),
-                reverse=True,
-            )
-
         if not filtered_results and results:
             logging.warning("Eşik sonrası sonuç yok. En iyi 3 ham sonuç gösteriliyor (fallback).")
-            final_results = sort_results(results)[:3]
+            final_results = sorted(results, key=lambda x: x.get("score_num", 0), reverse=True)[:3]
         else:
-            final_results = sort_results(filtered_results)
+            final_results = sorted(filtered_results, key=lambda x: x.get("score_num", 0), reverse=True)
 
         logging.info(f"Şablona gönderilecek nihai sonuç sayısı: {len(final_results)}")
         return render_template('index.html', results=final_results, query=query)
